@@ -37,7 +37,11 @@ const fetchUsers = async () => {
 };
 
 const openEditModal = (user) => {
-  editedUser.value = { ...user, roles: [...user.roles] }; // Clona roles para evitar edição direta no objeto original
+  editedUser.value = {
+    ...user,
+    preferences: { timezone: user.preferences.timezone },
+    roles: [...user.roles],
+  }; // Clona roles para evitar edição direta no objeto original
   showEditModal.value = true;
 };
 
