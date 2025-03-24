@@ -5,11 +5,21 @@ import { useRoute } from "vue-router";
 
 import router from "./../router";
 
+import DataTable from "primevue/datatable";
+import Column from "primevue/column";
+import Button from "primevue/button";
+import Skeleton from "primevue/skeleton";
+import Dialog from "primevue/dialog";
+import Checkbox from "primevue/checkbox";
+import InputText from "primevue/inputtext";
+
+const route = useRoute();
+
+const skeletons = ref(new Array(20));
+
 const users = ref([]);
 const loading = ref(true);
 const error = ref(null);
-
-const route = useRoute();
 
 const showEditModal = ref(false);
 const editedUser = ref({
@@ -21,6 +31,11 @@ const availableRoles = ["admin", "manager", "tester"];
 
 const selectedUser = ref(null);
 const showModal = ref(false);
+
+const formatDate = (_d) => {
+  var d = new Date(_d);
+  return d.getDate() + "/" + (d.getMonth() + 1) + "/" + d.getFullYear();
+};
 
 const fetchUsers = async () => {
   try {
@@ -86,10 +101,10 @@ const deleteUser = async () => {
     (u) => u.username !== selectedUser.value.username
   );
 
+  router.push("/");
+
   showModal.value = false;
   selectedUser.value = null;
-
-  router.push("/");
 };
 
 onMounted(fetchUsers);
@@ -98,131 +113,204 @@ onMounted(fetchUsers);
 <template>
   <div class="container">
     <h1>Usuário</h1>
-    <div v-if="loading" class="loading">Carregando...</div>
+
+    <DataTable v-if="loading" :value="skeletons">
+      <Column field="username" header="Name">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+      <Column field="roles" header="Roles">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+      <Column field="preferences.timezone" header="Timezone">
+        <template #body> <Skeleton></Skeleton> </template
+      ></Column>
+      <Column field="created_ts" header="Timestamp">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+      <Column field="active" header="Active">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+      <Column header="Actions">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+      <Column header="Detalhes">
+        <template #body>
+          <Skeleton></Skeleton>
+        </template>
+      </Column>
+    </DataTable>
     <div v-else-if="error" class="error">{{ error }}</div>
-    <table v-else class="user-table">
-      <thead class="user-table-head">
-        <tr>
-          <th>Nome</th>
-          <th>Funções</th>
-          <th>Fuso Horário</th>
-          <th>Ativo</th>
-          <th>Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="user in users" :key="user.username">
-          <td>
-            <router-link :to="`/user/${user.username}`">{{
-              user.username
-            }}</router-link>
-          </td>
-          <td>{{ user.roles.join(", ") }}</td>
-          <td>{{ user.preferences.timezone }}</td>
-          <td>
-            <span :class="{ active: user.active, inactive: !user.active }">
-              {{ user.active ? "Sim" : "Não" }}
-            </span>
-          </td>
-          <td>
-            <button @click="openEditModal(user)">Editar</button>
-            <button @click="confirmDelete(user)">Excluir</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+    <DataTable v-else :value="users">
+      <Column field="username" header="Name"> </Column>
+      <Column field="roles" header="Roles">
+        <template #body="slotProps">
+          {{ slotProps.data.roles.join(", ") }}
+        </template>
+      </Column>
+      <Column field="preferences.timezone" header="Timezone"></Column>
+      <Column field="created_ts" header="Timestamp">
+        <template #body="slotProps">
+          {{ formatDate(slotProps.data.created_ts) }}
+        </template>
+      </Column>
+      <Column field="active" header="Active">
+        <template #body="slotProps">
+          <span
+            :class="{
+              active: slotProps.data.active,
+              inactive: !slotProps.data.active,
+            }"
+          >
+            {{ slotProps.data.active ? "Sim" : "Não" }}
+          </span>
+        </template>
+      </Column>
+      <Column header="Actions">
+        <template #body="slotProps">
+          <div class="actions-column-cell">
+            <Button @click="openEditModal(slotProps.data)" severity="secondary"
+              >Editar</Button
+            >
+            <Button @click="confirmDelete(slotProps.data)" severity="secondary">
+              Excluir
+            </Button>
+          </div>
+        </template>
+      </Column>
+      <Column header="Detalhes">
+        <template #body="slotProps">
+          <router-link :to="`/user/${slotProps.data.username}`">
+            <Button severity="secondary">Detalhes</Button>
+          </router-link>
+        </template>
+      </Column>
+    </DataTable>
+
+    <!-- Modal de Adicionar Usuário -->
+    <Dialog
+      v-model:visible="showAddModal"
+      modal
+      header="Confirm Deletion"
+      :style="{ width: '25rem' }"
+    >
+      <template #header>
+        <h2>Adicionar Usuário</h2>
+      </template>
+
+      <div class="text-field">
+        <label>Usuário:</label>
+        <InputText v-model="newUser.username" />
+      </div>
+
+      <div class="text-field">
+        <label>Senha:</label>
+        <InputText v-model="newUser.password" type="password" />
+      </div>
+
+      <div class="text-field">
+        <label>Fuso Horário:</label>
+        <InputText v-model="newUser.preferences.timezone" />
+      </div>
+
+      <label>Funções:</label>
+      <div class="edit-dialog-checkboxes">
+        <label v-for="role in availableRoles" :key="role">
+          <Checkbox
+            type="checkbox"
+            :value="role"
+            :checked="newUser.roles.includes(role)"
+            @change="toggleRole(role, newUser)"
+          />
+          <span>{{ role }}</span>
+        </label>
+      </div>
+
+      <template #footer>
+        <Button @click="addUser">Criar</Button>
+        <Button @click="showAddModal = false" severity="secondary"
+          >Cancelar</Button
+        >
+      </template>
+    </Dialog>
 
     <!-- Modal de Edição -->
-    <div v-if="showEditModal" class="modal">
-      <div class="modal-content">
+    <Dialog
+      v-model:visible="showEditModal"
+      modal
+      header="Confirm Deletion"
+      :style="{ width: '25rem' }"
+    >
+      <template #header>
         <h2>Editar Usuário</h2>
+      </template>
 
+      <div class="text-field">
         <label>Usuário:</label>
-        <input v-model="editedUser.username" disabled />
-
-        <label>Fuso Horário:</label>
-        <input v-model="editedUser.preferences.timezone" />
-
-        <label>Funções:</label>
-        <div>
-          <label v-for="role in availableRoles" :key="role">
-            {{ role }}
-            <input
-              type="checkbox"
-              :value="role"
-              :checked="editedUser.roles.includes(role)"
-              @change="toggleRole(role)"
-            />
-          </label>
-        </div>
-
-        <button @click="updateUser">Salvar</button>
-        <button @click="showEditModal = false">Cancelar</button>
+        <InputText v-model="editedUser.username" disabled />
       </div>
-    </div>
+
+      <div class="text-field">
+        <label>Fuso Horário:</label>
+        <InputText v-model="editedUser.preferences.timezone" />
+      </div>
+
+      <label>Funções:</label>
+      <div class="edit-dialog-checkboxes">
+        <label v-for="role in availableRoles" :key="role">
+          <Checkbox
+            type="checkbox"
+            :value="role"
+            :checked="editedUser.roles.includes(role)"
+            @change="toggleRole(role)"
+          />
+          <span>{{ role }}</span>
+        </label>
+      </div>
+
+      <template #footer>
+        <Button @click="updateUser">Salvar</Button>
+        <Button @click="showEditModal = false" severity="secondary"
+          >Cancelar</Button
+        >
+      </template>
+    </Dialog>
 
     <!-- Modal de Exclusão -->
-    <div v-if="showModal" class="modal">
-      <div class="modal-content">
-        <h2>Confirmar Exclusão</h2>
-        <p>
-          Tem certeza de que deseja excluir o usuário
-          <strong>{{ selectedUser?.username }}</strong
-          >?
-        </p>
-        <button @click="deleteUser">Confirmar</button>
-        <button @click="showModal = false">Cancelar</button>
-      </div>
-    </div>
+    <Dialog
+      v-model:visible="showModal"
+      modal
+      header="Confirm Deletion"
+      :style="{ width: '25rem' }"
+    >
+      <p>
+        Tem certeza de que deseja excluir o usuário
+        <strong>{{ selectedUser?.username }}</strong
+        >?
+      </p>
+      <template #footer>
+        <Button @click="deleteUser" severity="danger">Confirmar</Button>
+        <Button @click="showModal = false" severity="secondary"
+          >Cancelar</Button
+        >
+      </template>
+    </Dialog>
   </div>
 </template>
 
 <style scoped>
 .container {
-  max-width: 800px;
   margin: auto;
   text-align: center;
-}
-
-.title {
-  font-size: 24px;
-  margin-bottom: 20px;
-}
-
-.loading,
-.error {
-  font-size: 18px;
-  color: red;
-}
-
-.user-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 10px;
-}
-
-.user-table-head {
-  color: black;
-}
-
-.user-table th,
-.user-table td {
-  border: 1px solid #ddd;
-  padding: 10px;
-}
-
-.user-table th {
-  background: #f4f4f4;
-}
-
-.active {
-  color: green;
-  font-weight: bold;
-}
-
-.inactive {
-  color: red;
-  font-weight: bold;
 }
 
 .modal {
@@ -238,15 +326,41 @@ onMounted(fetchUsers);
 }
 
 .modal-content {
-  background: white;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 1.25rem;
+  border-radius: 0.5rem;
   text-align: center;
 }
 
 input {
   width: 100%;
-  padding: 5px;
-  margin-bottom: 10px;
+  margin-bottom: 0.5rem;
+}
+
+.actions-column-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.text-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.text-field label {
+  font-size: 0.75rem;
+}
+
+.edit-dialog-checkboxes {
+  padding-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.edit-dialog-checkboxes label {
+  display: inline-flex;
+  gap: 0.5rem;
 }
 </style>
