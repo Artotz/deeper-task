@@ -143,11 +143,6 @@ onMounted(fetchUsers);
           <Skeleton></Skeleton>
         </template>
       </Column>
-      <Column header="Detalhes">
-        <template #body>
-          <Skeleton></Skeleton>
-        </template>
-      </Column>
     </DataTable>
     <div v-else-if="error" class="error">{{ error }}</div>
     <DataTable v-else :value="users">
@@ -185,13 +180,6 @@ onMounted(fetchUsers);
               Excluir
             </Button>
           </div>
-        </template>
-      </Column>
-      <Column header="Detalhes">
-        <template #body="slotProps">
-          <router-link :to="`/user/${slotProps.data.username}`">
-            <Button severity="secondary">Detalhes</Button>
-          </router-link>
         </template>
       </Column>
     </DataTable>
