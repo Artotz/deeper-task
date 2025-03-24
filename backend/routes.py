@@ -26,6 +26,10 @@ def create_user():
         data = request.json
         user_data = UserSchema(**data)
 
+        # Verifica se o usuário já existe
+        if users_collection.find_one({"username": user_data.username}):
+            return jsonify({"error": "Usuário já existe!"}), 409
+        
         # Inserir no MongoDB
         users_collection.insert_one(user_data.model_dump())
 
