@@ -10,6 +10,16 @@ def get_users():
     return jsonify(users), 200
 
 
+@routes.route("/users/<string:username>", methods=["GET"])
+def get_user(username):
+    user = users_collection.find_one({"username": username}, {"_id": 0})
+
+    if user:
+        return jsonify(user), 200
+    else:
+        return jsonify({"error": "Usuário não encontrado"}), 404
+
+
 @routes.route("/users", methods=["POST"])
 def create_user():
     try:

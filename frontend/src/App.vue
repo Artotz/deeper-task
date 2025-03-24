@@ -1,7 +1,3 @@
 <template>
-  <span>Hello Primevue</span>
+  <router-view />
 </template>
-
-<script></script>
-
-<style></style>
