@@ -3,11 +3,24 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 import { useRoute } from "vue-router";
 
+import router from "./../router";
+
 const users = ref([]);
 const loading = ref(true);
 const error = ref(null);
 
 const route = useRoute();
+
+const showEditModal = ref(false);
+const editedUser = ref({
+  username: "",
+  roles: [],
+  preferences: { timezone: "" },
+});
+const availableRoles = ["admin", "manager", "tester"];
+
+const selectedUser = ref(null);
+const showModal = ref(false);
 
 const fetchUsers = async () => {
   try {
@@ -23,13 +36,64 @@ const fetchUsers = async () => {
   }
 };
 
+const openEditModal = (user) => {
+  editedUser.value = { ...user, roles: [...user.roles] }; // Clona roles para evitar edição direta no objeto original
+  showEditModal.value = true;
+};
+
+const toggleRole = (role) => {
+  const index = editedUser.value.roles.indexOf(role);
+  if (index === -1) {
+    editedUser.value.roles.push(role);
+  } else {
+    editedUser.value.roles.splice(index, 1);
+  }
+};
+
+const updateUser = async () => {
+  if (!editedUser.value.username) return;
+
+  await axios.put(
+    `http://localhost:5000/users/${editedUser.value.username}`,
+    editedUser.value
+  );
+
+  // Atualiza a lista localmente
+  const index = users.value.findIndex(
+    (u) => u.username === editedUser.value.username
+  );
+  if (index !== -1) users.value[index] = { ...editedUser.value };
+
+  showEditModal.value = false;
+};
+
+const confirmDelete = (user) => {
+  selectedUser.value = user;
+  showModal.value = true;
+};
+
+const deleteUser = async () => {
+  if (!selectedUser.value) return;
+
+  await axios.delete(
+    `http://localhost:5000/users/${selectedUser.value.username}`
+  );
+  users.value = users.value.filter(
+    (u) => u.username !== selectedUser.value.username
+  );
+
+  showModal.value = false;
+  selectedUser.value = null;
+
+  router.push("/");
+};
+
 onMounted(fetchUsers);
 </script>
 
 <template>
   <div class="container">
-    <h1 class="title">Usuário</h1>
-
+    <h1>Usuário</h1>
     <div v-if="loading" class="loading">Carregando...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     <table v-else class="user-table">
@@ -39,11 +103,16 @@ onMounted(fetchUsers);
           <th>Funções</th>
           <th>Fuso Horário</th>
           <th>Ativo</th>
+          <th>Ações</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="user in users" :key="user.username">
-          <td>{{ user.username }}</td>
+          <td>
+            <router-link :to="`/user/${user.username}`">{{
+              user.username
+            }}</router-link>
+          </td>
           <td>{{ user.roles.join(", ") }}</td>
           <td>{{ user.preferences.timezone }}</td>
           <td>
@@ -51,9 +120,56 @@ onMounted(fetchUsers);
               {{ user.active ? "Sim" : "Não" }}
             </span>
           </td>
+          <td>
+            <button @click="openEditModal(user)">Editar</button>
+            <button @click="confirmDelete(user)">Excluir</button>
+          </td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Modal de Edição -->
+    <div v-if="showEditModal" class="modal">
+      <div class="modal-content">
+        <h2>Editar Usuário</h2>
+
+        <label>Usuário:</label>
+        <input v-model="editedUser.username" disabled />
+
+        <label>Fuso Horário:</label>
+        <input v-model="editedUser.preferences.timezone" />
+
+        <label>Funções:</label>
+        <div>
+          <label v-for="role in availableRoles" :key="role">
+            {{ role }}
+            <input
+              type="checkbox"
+              :value="role"
+              :checked="editedUser.roles.includes(role)"
+              @change="toggleRole(role)"
+            />
+          </label>
+        </div>
+
+        <button @click="updateUser">Salvar</button>
+        <button @click="showEditModal = false">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- Modal de Exclusão -->
+    <div v-if="showModal" class="modal">
+      <div class="modal-content">
+        <h2>Confirmar Exclusão</h2>
+        <p>
+          Tem certeza de que deseja excluir o usuário
+          <strong>{{ selectedUser?.username }}</strong
+          >?
+        </p>
+        <button @click="deleteUser">Confirmar</button>
+        <button @click="showModal = false">Cancelar</button>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -103,5 +219,30 @@ onMounted(fetchUsers);
 .inactive {
   color: red;
   font-weight: bold;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+input {
+  width: 100%;
+  padding: 5px;
+  margin-bottom: 10px;
 }
 </style>
