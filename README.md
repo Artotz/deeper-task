@@ -16,7 +16,7 @@ pip install -r requirements.txt
 
 ---
 
-### **Frontend Setup (Vue 3 + Vite)**
+### **Frontend Setup (Vue 3)**
 #### **A) Install Dependencies**
 ```bash
 cd frontend
